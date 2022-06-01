@@ -1,6 +1,5 @@
 package qna.domain;
 
-import java.time.LocalDateTime;
 import java.util.Objects;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -11,16 +10,11 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
-import qna.CannotDeleteException;
 import qna.NotFoundException;
 import qna.UnAuthorizedException;
 import qna.entity.BaseEntity;
 
 @Entity
-@SQLDelete(sql = "UPDATE answer SET deleted = true WHERE id=?")
-@Where(clause = "deleted=false")
 public class Answer extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,8 +22,9 @@ public class Answer extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "writer_id", foreignKey = @ForeignKey(name = "fk_answer_writer"))
     private User writer;
-    @Column(name = "question_id")
-    private Long questionId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "question_id", foreignKey = @ForeignKey(name = "fk_answer_to_question"))
+    private Question question;
     private String contents;
     @Column(nullable = false)
     private boolean deleted = false;
@@ -53,7 +48,7 @@ public class Answer extends BaseEntity {
         }
 
         this.writer = writer;
-        this.questionId = question.getId();
+        this.question = question;
         this.contents = contents;
     }
 
@@ -62,7 +57,7 @@ public class Answer extends BaseEntity {
     }
 
     public void toQuestion(Question question) {
-        this.questionId = question.getId();
+        this.question = question;
     }
 
     public Long getId() {
@@ -73,8 +68,8 @@ public class Answer extends BaseEntity {
         return writer;
     }
 
-    public Long getQuestionId() {
-        return questionId;
+    public Question getQuestion() {
+        return question;
     }
 
     public String getContents() {
@@ -85,17 +80,8 @@ public class Answer extends BaseEntity {
         return deleted;
     }
 
-    public DeleteHistory delete(User loginUser, LocalDateTime deletedDate) {
-        validateForDelete(loginUser);
-
+    public void delete() {
         this.deleted = true;
-        return new DeleteHistory(ContentType.ANSWER, id, loginUser, deletedDate);
-    }
-
-    private void validateForDelete(User loginUser) {
-        if (!isOwner(loginUser)) {
-            throw new CannotDeleteException("다른 사람이 쓴 답변이 있어 삭제할 수 없습니다.");
-        }
     }
 
     @Override
@@ -103,7 +89,7 @@ public class Answer extends BaseEntity {
         return "Answer{" +
                 "id=" + id +
                 ", writer=" + writer +
-                ", questionId=" + questionId +
+                ", question=" + question +
                 ", contents='" + contents + '\'' +
                 ", deleted=" + deleted +
                 '}';

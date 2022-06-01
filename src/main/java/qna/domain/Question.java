@@ -1,10 +1,6 @@
 package qna.domain;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import javax.persistence.Column;
-import javax.persistence.Embedded;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.ForeignKey;
@@ -13,14 +9,9 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
-import org.hibernate.annotations.SQLDelete;
-import org.hibernate.annotations.Where;
-import qna.CannotDeleteException;
 import qna.entity.BaseEntity;
 
 @Entity
-@SQLDelete(sql = "UPDATE question SET deleted = true WHERE id=?")
-@Where(clause = "deleted=false")
 public class Question extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,8 +24,6 @@ public class Question extends BaseEntity {
     private User writer;
     @Column(nullable = false)
     private boolean deleted = false;
-    @Embedded
-    private Answers answers = new Answers();
 
     protected Question() {
     }
@@ -60,7 +49,6 @@ public class Question extends BaseEntity {
 
     public void addAnswer(Answer answer) {
         answer.toQuestion(this);
-        answers.add(answer);
     }
 
     public Long getId() {
@@ -79,31 +67,12 @@ public class Question extends BaseEntity {
         return writer;
     }
 
-    public Answers getAnswers() {
-        return answers;
-    }
-
     public boolean isDeleted() {
         return deleted;
     }
 
-    public List<DeleteHistory> delete(User loginUser) {
-        validateForDelete(loginUser);
-
-        List<DeleteHistory> deleteHistories = new ArrayList<>();
-        LocalDateTime deletedDate = LocalDateTime.now();
-        deleteHistories.add(new DeleteHistory(ContentType.QUESTION, id, loginUser, deletedDate));
-        deleteHistories.addAll(answers.deleteAll(loginUser, deletedDate));
-
+    public void delete() {
         this.deleted = true;
-
-        return deleteHistories;
-    }
-
-    private void validateForDelete(User loginUser) {
-        if (!isOwner(loginUser)) {
-            throw new CannotDeleteException("질문을 삭제할 권한이 없습니다.");
-        }
     }
 
     @Override
